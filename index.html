@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Request Service | Atlantic Auto Service</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f5;color:#1d2433}
+header{background:#12305a;color:#fff;text-align:center;padding:22px 16px}header h1{margin:0;font-size:1.6rem}header p{margin:6px 0 0;opacity:.85;font-size:.9rem}
+main{max-width:520px;margin:18px auto;padding:0 14px}.card{background:#fff;border-radius:12px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+h2{margin-top:0;font-size:1.2rem}label{display:block;font-weight:600;margin:14px 0 6px;font-size:.95rem}.opt{font-weight:400;color:#6b7280}
+input,textarea{width:100%;padding:12px;font-size:16px;border:1px solid #c7ced8;border-radius:8px}textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus{outline:2px solid #2b6cb0;border-color:#2b6cb0}
+button{margin-top:20px;width:100%;padding:14px;font-size:1.05rem;font-weight:700;background:#c8102e;color:#fff;border:0;border-radius:8px;cursor:pointer}
+button:disabled{opacity:.6}.note{font-size:.85rem;color:#4b5563}.err{color:#c8102e;font-size:.9rem}#thanks{display:none;text-align:center}
+footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
+</style></head><body>
+<header><h1>Atlantic Auto Service</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM (closed noon&ndash;1)</p></header>
+<main><div class="card">
+<form id="f" novalidate>
+<h2>Request Service</h2>
+<p class="note">Tell us about your vehicle. We'll call you to set up an inspection time.</p>
+<label for="name">Full name</label><input id="name" name="name" autocomplete="name" required>
+<label for="phone">Phone</label><input id="phone" name="phone" type="tel" autocomplete="tel" required>
+<label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email">
+<label for="vehicle">Vehicle year / make / model</label><input id="vehicle" name="vehicle" placeholder="e.g. 2018 Ford F-150" required>
+<label for="issue">Brief description of the issue</label><textarea id="issue" name="issue" placeholder="What's going on with your vehicle?" required></textarea>
+<input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
+<p id="err" class="err"></p>
+<button id="btn" type="submit">Submit Request</button>
+</form>
+<div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Auto Service will call you shortly to set up an inspection time.</p></div>
+</div></main><footer>&copy; Atlantic Auto Service</footer>
+<script>
+// ===== CONFIG: set to your form endpoint (e.g. "https://formspree.io/f/XXXX"
+// or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
+const FORM_ENDPOINT = "";
+// =====
+const f=document.getElementById('f'),err=document.getElementById('err'),btn=document.getElementById('btn');
+f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
+ if(!f.checkValidity()){err.textContent='Please fill in all required fields.';f.reportValidity();return}
+ btn.disabled=true;btn.textContent='Sending...';
+ try{ if(FORM_ENDPOINT){const d=Object.fromEntries(new FormData(f));d._subject='New service request - '+d.name;
+   const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
+   if(!r.ok)throw 0;}
+  f.style.display='none';document.getElementById('thanks').style.display='block';window.scrollTo(0,0);
+ }catch(_){err.textContent='Sorry, something went wrong. Please call the shop.';btn.disabled=false;btn.textContent='Submit Request';}
+});
+</script></body></html>
