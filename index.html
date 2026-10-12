@@ -59,7 +59,7 @@ const FORM_ENDPOINT = "";
 // =====
 // ===== Appointment picker (busy.json is refreshed by GitHub Actions from the shop calendar) =====
 // SERVER_URL: booking server (e.g. "https://aas-booking.onrender.com"). Empty = use static busy.json.
-const SERVER_URL = "";
+const SERVER_URL = "https://aas-booking.onrender.com";
 let TAKEN=null,PICK=null;
 const SLOTS=[8,9,10,11,12,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
 const fmtH=h=>{const a=h<12?'AM':'PM',x=h%12||12;return x+' '+a};
@@ -76,10 +76,14 @@ function renderDays(){dEl.innerHTML='';let first=null;for(const ymd of days()){c
 function pickDay(ymd,btn){[...dEl.children].forEach(c=>c.classList.remove('sel'));btn.classList.add('sel');pd.value=ymd;pt.value='';sEl.innerHTML='';
  for(const h of SLOTS){const t=taken(ymd,h),b=document.createElement('button');b.type='button';b.className='slot'+(t?' taken':'');b.disabled=t;const txt=fmtH(h)+' \u2013 '+fmtH(h+1);
   b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{PICK=new Date(slotMs(ymd,h)).toISOString();[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
+function loadStatic(){return fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{TAKEN=null;BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()})}
 function loadAvail(){
- if(!SERVER_URL)return fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()});
- return fetch(SERVER_URL+'/availability',{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{TAKEN=new Set(j.slots.filter(x=>x.taken).map(x=>Date.parse(x.start)));renderDays()})
-  .catch(()=>{document.getElementById('pickmsg').innerHTML='Online scheduling is unavailable right now. Please call <a href="tel:+17122546914">712-254-6914</a>.';btn.disabled=true});
+ const pm=document.getElementById('pickmsg');
+ if(!SERVER_URL)return loadStatic();
+ pm.textContent='Loading available times\u2026 (this can take up to 30 seconds)';dEl.innerHTML='';sEl.innerHTML='';
+ const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),45000);
+ return fetch(SERVER_URL+'/availability',{cache:'no-store',signal:ac.signal}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{clearTimeout(tm);pm.textContent='';TAKEN=new Set(j.slots.filter(x=>x.taken).map(x=>Date.parse(x.start)));renderDays()})
+  .catch(()=>{clearTimeout(tm);pm.textContent='';return loadStatic()});
 }
 loadAvail();
 // =====
