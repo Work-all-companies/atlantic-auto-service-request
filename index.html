@@ -22,6 +22,14 @@ input:focus,textarea:focus{outline:2px solid #2b6cb0;border-color:#2b6cb0}
 button{margin-top:20px;width:100%;padding:14px;font-size:1.05rem;font-weight:700;background:#c8102e;color:#fff;border:0;border-radius:8px;cursor:pointer}
 button:disabled{opacity:.6}.note{font-size:.85rem;color:#4b5563}.err{color:#c8102e;font-size:.9rem}#thanks{display:none;text-align:center}
 footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
+.picker{margin-top:6px}.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.day{flex:0 0 auto;min-width:74px;padding:8px 6px;border:1px solid #c7ced8;border-radius:8px;background:#fff;text-align:center;font-size:.85rem;cursor:pointer;color:#1d2433}
+.day b{display:block;font-size:1.05rem}.day.sel{background:#12305a;color:#fff;border-color:#12305a}.day.full{background:#f1f2f4;color:#9aa1ab;cursor:not-allowed}
+.slots{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.slot{padding:11px 4px;border:1px solid #c7ced8;border-radius:8px;background:#fff;font-size:.95rem;cursor:pointer;color:#1d2433}
+.slot.sel{background:#c8102e;color:#fff;border-color:#c8102e}.slot.taken{background:#eceef1;color:#9aa1ab;cursor:not-allowed;text-decoration:line-through}
+.day,.slot{width:auto;margin:0;font-weight:500}.slot{width:100%}
+.slot small{display:block;font-size:.75rem}
 </style></head><body>
 <header><h1>Atlantic Service &amp; Repair</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM (closed noon&ndash;1)</p><p><a href="tel:+17122546914" style="color:#fff;font-weight:700">Call 712-254-6914</a></p></header>
 <main><div class="card">
@@ -33,6 +41,10 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email">
 <label for="vehicle">Vehicle year / make / model</label><input id="vehicle" name="vehicle" placeholder="e.g. 2018 Ford F-150" required>
 <label for="vin">VIN or license plate number</label><input id="vin" name="vin_or_plate" placeholder="17-character VIN or plate #" autocapitalize="characters" required>
+<label>Preferred drop-off / inspection time</label>
+<p class="note" style="margin:0 0 8px">Pick a time that works for you. We'll call to confirm.</p>
+<div class="picker"><div id="days" class="days"></div><div id="slots" class="slots"></div><p id="pickmsg" class="note"></p></div>
+<input type="hidden" name="preferred_date" id="preferred_date"><input type="hidden" name="preferred_time" id="preferred_time">
 <label for="issue">Brief description of the issue</label><textarea id="issue" name="issue" placeholder="What's going on with your vehicle?" required></textarea>
 <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
 <p id="err" class="err"></p>
@@ -45,8 +57,27 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 // or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
 const FORM_ENDPOINT = "";
 // =====
+// ===== Appointment picker (busy.json is refreshed by GitHub Actions from the shop calendar) =====
+const SLOTS=[8,9,10,11,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
+const fmtH=h=>{const a=h<12?'AM':'PM',x=h%12||12;return x+' '+a};
+function chi(d){const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23',minute:'2-digit'}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});return p}
+function off(ymd){const d=new Date(ymd+'T12:00:00Z');const p=chi(d);return (12-(+p.hour))}// hours CT is behind UTC
+function slotMs(ymd,h){return Date.parse(ymd+'T'+String(h).padStart(2,'0')+':00:00Z')+off(ymd)*3600e3}
+function taken(ymd,h){const s=slotMs(ymd,h),e=s+3600e3;return BUSY.some(b=>b.s<e&&b.e>s)}
+function days(){const out=[],p=chi(new Date());let d=new Date(Date.UTC(+p.year,+p.month-1,+p.day));for(let i=1;i<=DAYS_AHEAD;i++){const x=new Date(d.getTime()+i*864e5),w=x.getUTCDay();if(w>0&&w<6)out.push(x.toISOString().slice(0,10))}return out}
+const dEl=document.getElementById('days'),sEl=document.getElementById('slots'),pd=document.getElementById('preferred_date'),pt=document.getElementById('preferred_time');
+function label(ymd,o){return new Date(ymd+'T12:00:00Z').toLocaleDateString('en-US',Object.assign({timeZone:'UTC'},o))}
+function renderDays(){dEl.innerHTML='';let first=null;for(const ymd of days()){const full=SLOTS.every(h=>taken(ymd,h)),b=document.createElement('button');b.type='button';b.className='day'+(full?' full':'');b.disabled=full;
+ b.innerHTML=label(ymd,{weekday:'short'})+'<b>'+label(ymd,{month:'short',day:'numeric'})+'</b>'+(full?'<small>Full</small>':'');b.onclick=()=>pickDay(ymd,b);dEl.appendChild(b);if(!full&&!first)first=[ymd,b]}
+ if(first)pickDay(...first);else document.getElementById('pickmsg').textContent='No open times right now. Please call 712-254-6914.'}
+function pickDay(ymd,btn){[...dEl.children].forEach(c=>c.classList.remove('sel'));btn.classList.add('sel');pd.value=ymd;pt.value='';sEl.innerHTML='';
+ for(const h of SLOTS){const t=taken(ymd,h),b=document.createElement('button');b.type='button';b.className='slot'+(t?' taken':'');b.disabled=t;const txt=fmtH(h)+' \u2013 '+fmtH(h+1);
+  b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
+fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()});
+// =====
 const f=document.getElementById('f'),err=document.getElementById('err'),btn=document.getElementById('btn');
 f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
+ if(!pt.value){err.textContent='Please choose a preferred time.';return}
  if(!f.checkValidity()){err.textContent='Please fill in all required fields.';f.reportValidity();return}
  btn.disabled=true;btn.textContent='Sending...';
  try{ if(FORM_ENDPOINT){const d=Object.fromEntries(new FormData(f));d._subject='New service request - '+d.name;
