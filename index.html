@@ -58,12 +58,15 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 const FORM_ENDPOINT = "";
 // =====
 // ===== Appointment picker (busy.json is refreshed by GitHub Actions from the shop calendar) =====
+// SERVER_URL: booking server (e.g. "https://aas-booking.onrender.com"). Empty = use static busy.json.
+const SERVER_URL = "";
+let TAKEN=null,PICK=null;
 const SLOTS=[8,9,10,11,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
 const fmtH=h=>{const a=h<12?'AM':'PM',x=h%12||12;return x+' '+a};
 function chi(d){const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23',minute:'2-digit'}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});return p}
 function off(ymd){const d=new Date(ymd+'T12:00:00Z');const p=chi(d);return (12-(+p.hour))}// hours CT is behind UTC
 function slotMs(ymd,h){return Date.parse(ymd+'T'+String(h).padStart(2,'0')+':00:00Z')+off(ymd)*3600e3}
-function taken(ymd,h){const s=slotMs(ymd,h),e=s+3600e3;return BUSY.some(b=>b.s<e&&b.e>s)}
+function taken(ymd,h){if(TAKEN)return TAKEN.has(slotMs(ymd,h));const s=slotMs(ymd,h),e=s+3600e3;return BUSY.some(b=>b.s<e&&b.e>s)}
 function days(){const out=[],p=chi(new Date());let d=new Date(Date.UTC(+p.year,+p.month-1,+p.day));for(let i=1;i<=DAYS_AHEAD;i++){const x=new Date(d.getTime()+i*864e5),w=x.getUTCDay();if(w>0&&w<6)out.push(x.toISOString().slice(0,10))}return out}
 const dEl=document.getElementById('days'),sEl=document.getElementById('slots'),pd=document.getElementById('preferred_date'),pt=document.getElementById('preferred_time');
 function label(ymd,o){return new Date(ymd+'T12:00:00Z').toLocaleDateString('en-US',Object.assign({timeZone:'UTC'},o))}
@@ -72,15 +75,24 @@ function renderDays(){dEl.innerHTML='';let first=null;for(const ymd of days()){c
  if(first)pickDay(...first);else document.getElementById('pickmsg').textContent='No open times right now. Please call 712-254-6914.'}
 function pickDay(ymd,btn){[...dEl.children].forEach(c=>c.classList.remove('sel'));btn.classList.add('sel');pd.value=ymd;pt.value='';sEl.innerHTML='';
  for(const h of SLOTS){const t=taken(ymd,h),b=document.createElement('button');b.type='button';b.className='slot'+(t?' taken':'');b.disabled=t;const txt=fmtH(h)+' \u2013 '+fmtH(h+1);
-  b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
-fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()});
+  b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{PICK=new Date(slotMs(ymd,h)).toISOString();[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
+function loadAvail(){
+ if(!SERVER_URL)return fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()});
+ return fetch(SERVER_URL+'/availability',{cache:'no-store'}).then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>{TAKEN=new Set(j.slots.filter(x=>x.taken).map(x=>Date.parse(x.start)));renderDays()})
+  .catch(()=>{document.getElementById('pickmsg').innerHTML='Online scheduling is unavailable right now. Please call <a href="tel:+17122546914">712-254-6914</a>.';btn.disabled=true});
+}
+loadAvail();
 // =====
 const f=document.getElementById('f'),err=document.getElementById('err'),btn=document.getElementById('btn');
 f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
  if(!pt.value){err.textContent='Please choose a preferred time.';return}
  if(!f.checkValidity()){err.textContent='Please fill in all required fields.';f.reportValidity();return}
  btn.disabled=true;btn.textContent='Sending...';
- try{ if(FORM_ENDPOINT){const d=Object.fromEntries(new FormData(f));d._subject='New service request - '+d.name;
+ try{ if(SERVER_URL){const d=Object.fromEntries(new FormData(f));d.slot_start=PICK;
+   const r=await fetch(SERVER_URL+'/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+   if(r.status===409){err.textContent='Sorry, that time was just taken. Please choose another.';btn.disabled=false;btn.textContent='Submit Request';pt.value='';loadAvail();return}
+   if(!r.ok)throw 0;
+  } else if(FORM_ENDPOINT){const d=Object.fromEntries(new FormData(f));d._subject='New service request - '+d.name;
    const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
    if(!r.ok)throw 0;}
   f.style.display='none';document.getElementById('thanks').style.display='block';window.scrollTo(0,0);

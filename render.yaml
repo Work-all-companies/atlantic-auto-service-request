@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: aas-booking
+    runtime: python
+    rootDir: server
+    plan: starter            # needed for the persistent disk below
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 --threads 8 -b 0.0.0.0:$PORT app:app
+    healthCheckPath: /health
+    disk: {name: data, mountPath: /data, sizeGB: 1}
+    envVars:
+      - {key: DB_PATH, value: /data/bookings.db}
+      - {key: ALLOWED_ORIGIN, value: "https://work-all-companies.github.io"}
+      - {key: AAS_CALENDAR_ID, value: "AQMkADAwATMwMAExLWFhAGM2LWRhMjIALTAwAi0wMAoARgAAAy_ukLmpw9RCpVlFRrF6q4gHAFH8jMBOIGRCjo1Tvq4LPwoAAAIBBgAAAFH8jMBOIGRCjo1Tvq4LPwoAAAFbjvYAAAA="}
+      - {key: MS_CLIENT_ID, sync: false}
+      - {key: MS_REFRESH_TOKEN, sync: false}
