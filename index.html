@@ -59,7 +59,7 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Service &amp; Repair will call you shortly to confirm your appointment time.</p><p>Questions? Call <a href="tel:+17122546914">712-254-6914</a></p></div>
 </div></main><footer>&copy; Atlantic Service &amp; Repair</footer>
 <script>
-const FORM_VERSION='2026-10-12e';
+const FORM_VERSION='2026-10-12f';
 (function(){try{fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/FORM_VERSION='([^']+)'/);if(m&&m[1]!==FORM_VERSION&&!sessionStorage.getItem('reloaded'+m[1])){sessionStorage.setItem('reloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1])}}).catch(()=>{})}catch(_){}})();
 // ===== CONFIG: set to your form endpoint (e.g. "https://formspree.io/f/XXXX"
 // or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
@@ -111,8 +111,8 @@ function loadModels(){const ms=$('make_sel'),md=$('model_sel'),y=$('year').value
  if(!ms.value){md.disabled=true;md.innerHTML='<option value="">Pick make first</option>';return}
  if(ms.value===OTHER||!o.dataset.id){opts(md,[],'Choose model');md.value=OTHER;other($('model'),true);return}
  md.disabled=true;md.innerHTML='<option value="">Loading models\u2026</option>';
- fetch('https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeIdYear/makeId/'+o.dataset.id+'/modelyear/'+y+'?format=json').then(r=>{if(!r.ok)throw 0;return r.json()})
-  .then(j=>[...new Set((j.Results||[]).map(r=>String(r.Model_Name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})))
+ Promise.all(['Passenger Car','Multipurpose Passenger Vehicle (MPV)','Truck'].map(t=>fetch('https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeIdYear/makeId/'+o.dataset.id+'/modelyear/'+y+'/vehicletype/'+encodeURIComponent(t)+'?format=json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(j=>j.Results||[]).catch(()=>null)))
+  .then(a=>{if(a.every(x=>x===null))throw 0;return [...new Set(a.flatMap(x=>x||[]).map(r=>String(r.Model_Name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))})
   .catch(()=>[]).then(l=>{if($('make_sel').value!==ms.value||$('year').value!==y)return;opts(md,l.map(m=>({v:m,t:m})),l.length?'Choose model':'No list found \u2013 pick Other');if(!l.length){md.value=OTHER;other($('model'),true)}})}
 $('year').addEventListener('change',()=>{const ms=$('make_sel');if(!$('year').value){ms.disabled=true;ms.innerHTML='<option value="">Pick year first</option>';$('make').value='';other($('make'),false)}else if(ms.disabled||!MAKES)loadMakes();else loadModels()});
 $('make_sel').addEventListener('change',()=>{const v=$('make_sel').value;if(v===OTHER)other($('make'),true);else{other($('make'),false);$('make').value=v}loadModels()});
