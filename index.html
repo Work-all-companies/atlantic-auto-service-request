@@ -17,10 +17,12 @@
 header{background:#12305a;color:#fff;text-align:center;padding:22px 16px}header h1{margin:0;font-size:1.6rem}header p{margin:6px 0 0;opacity:.85;font-size:.9rem}
 main{max-width:520px;margin:18px auto;padding:0 14px}.card{background:#fff;border-radius:12px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
 h2{margin-top:0;font-size:1.2rem}label{display:block;font-weight:600;margin:14px 0 6px;font-size:.95rem}.opt{font-weight:400;color:#6b7280}
-input,textarea{width:100%;padding:12px;font-size:16px;border:1px solid #c7ced8;border-radius:8px}textarea{min-height:110px;resize:vertical}
-input:focus,textarea:focus{outline:2px solid #2b6cb0;border-color:#2b6cb0}
+input,textarea,select{width:100%;padding:12px;font-size:16px;border:1px solid #c7ced8;border-radius:8px}textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:2px solid #2b6cb0;border-color:#2b6cb0}
 button{margin-top:20px;width:100%;padding:14px;font-size:1.05rem;font-weight:700;background:#c8102e;color:#fff;border:0;border-radius:8px;cursor:pointer}
 button:disabled{opacity:.6}.note{font-size:.85rem;color:#4b5563}.err{color:#c8102e;font-size:.9rem}#thanks{display:none;text-align:center}
+.ferr{color:#c8102e;font-size:.85rem;margin:4px 0 0;min-height:0}.bad{border-color:#c8102e!important;background:#fff6f7}
+.row3{display:grid;grid-template-columns:1fr 1.3fr 1.3fr;gap:8px}.row3 label{margin-top:14px}
 footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 .picker{margin-top:6px}.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
 .day{flex:0 0 auto;min-width:74px;padding:8px 6px;border:1px solid #c7ced8;border-radius:8px;background:#fff;text-align:center;font-size:.85rem;cursor:pointer;color:#1d2433}
@@ -36,16 +38,20 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <form id="f" novalidate>
 <h2>Request Service</h2>
 <p class="note">Tell us about your vehicle. We'll call you to set up an inspection time.</p>
-<label for="name">Full name</label><input id="name" name="name" autocomplete="name" required>
-<label for="phone">Phone</label><input id="phone" name="phone" type="tel" autocomplete="tel" required>
-<label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email">
-<label for="vehicle">Vehicle year / make / model</label><input id="vehicle" name="vehicle" placeholder="e.g. 2018 Ford F-150" required>
-<label for="vin">VIN or license plate number</label><input id="vin" name="vin_or_plate" placeholder="17-character VIN or plate #" autocapitalize="characters" required>
+<label for="name">Full name</label><input id="name" name="name" autocomplete="name" required><p class="ferr" id="e-name"></p>
+<label for="phone">Phone</label><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(712) 555-1234" maxlength="14" required><p class="ferr" id="e-phone"></p>
+<label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email"><p class="ferr" id="e-email"></p>
+<div class="row3"><div><label for="year">Year</label><select id="year" name="year" required><option value="">Year</option></select></div>
+<div><label for="make">Make</label><input id="make" name="make" placeholder="e.g. Ford" required></div>
+<div><label for="model">Model</label><input id="model" name="model" placeholder="e.g. F-150" required></div></div>
+<p class="ferr" id="e-vehicle"></p>
+<label for="vin">VIN <span class="opt">(or enter a license plate below)</span></label><input id="vin" name="vin" placeholder="17-character VIN" maxlength="17" autocapitalize="characters" autocomplete="off" spellcheck="false"><p class="ferr" id="e-vin"></p>
+<label for="plate">License plate number <span class="opt">(if no VIN)</span></label><input id="plate" name="plate" placeholder="e.g. ABC123" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false"><p class="ferr" id="e-plate"></p>
 <label>Preferred drop-off / inspection time</label>
 <p class="note" style="margin:0 0 8px">Pick a time that works for you. We'll call to confirm.</p>
-<div class="picker"><div id="days" class="days"></div><div id="slots" class="slots"></div><p id="pickmsg" class="note"></p></div>
+<div class="picker"><div id="days" class="days"></div><div id="slots" class="slots"></div><p id="pickmsg" class="note"></p></div><p class="ferr" id="e-slot"></p>
 <input type="hidden" name="preferred_date" id="preferred_date"><input type="hidden" name="preferred_time" id="preferred_time">
-<label for="issue">Brief description of the issue</label><textarea id="issue" name="issue" placeholder="What's going on with your vehicle?" required></textarea>
+<label for="issue">Brief description of the issue</label><textarea id="issue" name="issue" placeholder="What's going on with your vehicle?" required></textarea><p class="ferr" id="e-issue"></p>
 <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
 <p id="err" class="err"></p>
 <button id="btn" type="submit">Submit Request</button>
@@ -75,7 +81,7 @@ function renderDays(){dEl.innerHTML='';let first=null;for(const ymd of days()){c
  if(first)pickDay(...first);else document.getElementById('pickmsg').textContent='No open times right now. Please call 712-254-6914.'}
 function pickDay(ymd,btn){[...dEl.children].forEach(c=>c.classList.remove('sel'));btn.classList.add('sel');pd.value=ymd;pt.value='';sEl.innerHTML='';
  for(const h of SLOTS){const t=taken(ymd,h),b=document.createElement('button');b.type='button';b.className='slot'+(t?' taken':'');b.disabled=t;const txt=fmtH(h)+' \u2013 '+fmtH(h+1);
-  b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{PICK=new Date(slotMs(ymd,h)).toISOString();[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
+  b.innerHTML=txt+(t?'<small>Taken</small>':'');b.onclick=()=>{PICK=new Date(slotMs(ymd,h)).toISOString();[...sEl.children].forEach(c=>c.classList.remove('sel'));b.classList.add('sel');pt.value=txt;setE('slot','');pd.value=label(ymd,{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' ('+ymd+')'};sEl.appendChild(b)}}
 function loadStatic(){return fetch('busy.json?t='+Date.now()).then(r=>r.ok?r.json():{busy:[]}).catch(()=>({busy:[]})).then(j=>{TAKEN=null;BUSY=(j.busy||[]).map(b=>({s:Date.parse(b.start),e:Date.parse(b.end)}));renderDays()})}
 function loadAvail(){
  const pm=document.getElementById('pickmsg');
@@ -88,15 +94,45 @@ function loadAvail(){
 loadAvail();
 // =====
 const f=document.getElementById('f'),err=document.getElementById('err'),btn=document.getElementById('btn');
+const $=id=>document.getElementById(id);
+const MAXY=new Date().getFullYear()+1,MINY=1950;
+for(let y=MAXY;y>=MINY;y--){const o=document.createElement('option');o.value=o.textContent=y;$('year').appendChild(o)}
+const FIELD={name:['name'],phone:['phone'],email:['email'],vehicle:['year','make','model'],vin:['vin'],plate:['plate'],issue:['issue'],slot:[]};
+function setE(k,m){const e=$('e-'+k);if(e)e.textContent=m||'';FIELD[k].forEach(id=>$(id).classList.toggle('bad',!!m))}
+const digits=v=>{let d=v.replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);return d.slice(0,10)};
+function fmtPhone(d){if(d.length<4)return d.length?'('+d:'';if(d.length<7)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
+$('phone').addEventListener('input',e=>{e.target.value=fmtPhone(digits(e.target.value))});
+$('vin').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+$('plate').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+const CHECK={
+ name:()=>$('name').value.trim()?'':'Please enter your name.',
+ phone:()=>digits($('phone').value).length===10?'':'Please enter a 10-digit phone number, like (712) 555-1234.',
+ email:()=>{const v=$('email').value.trim();return !v||/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)?'':'That email address doesn\u2019t look right (or leave it blank).'},
+ vehicle:()=>{const y=+$('year').value;if(!(y>=MINY&&y<=MAXY))return 'Please choose the vehicle year ('+MINY+'\u2013'+MAXY+').';
+  if(!$('make').value.trim())return 'Please enter the vehicle make (e.g. Ford).';if(!$('model').value.trim())return 'Please enter the vehicle model (e.g. F-150).';return ''},
+ vin:()=>{const v=$('vin').value;if(!v)return $('plate').value?'':'Please enter a VIN or a license plate number.';
+  if(v.length!==17)return 'VIN must be exactly 17 characters (you have '+v.length+').';if(/[IOQ]/.test(v))return 'VINs never contain the letters I, O or Q. Check for 1 or 0 instead.';return ''},
+ plate:()=>{const v=$('plate').value;if(!v||$('vin').value)return '';return /^[A-Z0-9]{2,8}$/.test(v)?'':'License plate must be 2\u20138 letters or numbers.'},
+ issue:()=>$('issue').value.trim()?'':'Please briefly describe the issue.',
+ slot:()=>pt.value?'':'Please choose a preferred time.'};
+const touched=new Set();
+function check(k){const m=CHECK[k]();setE(k,m);return !m}
+for(const k of Object.keys(FIELD))for(const id of FIELD[k]){const el=$(id);
+ el.addEventListener('blur',()=>{touched.add(k);check(k)});
+ el.addEventListener('input',()=>{if(touched.has(k))check(k);if(k==='vin'&&touched.has('plate'))check('plate');if(k==='plate'&&touched.has('vin'))check('vin')});
+ el.addEventListener('change',()=>{if(touched.has(k))check(k)})}
 f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
- if(!pt.value){err.textContent='Please choose a preferred time.';return}
- if(!f.checkValidity()){err.textContent='Please fill in all required fields.';f.reportValidity();return}
+ const bad=Object.keys(CHECK).filter(k=>{touched.add(k);return !check(k)});
+ if(bad.length){err.textContent='Please fix the highlighted fields above.';const first=FIELD[bad[0]][0];(first?$(first):$('days')).scrollIntoView({behavior:'smooth',block:'center'});if(first)$(first).focus({preventScroll:true});return}
  btn.disabled=true;btn.textContent='Sending...';
- try{ if(SERVER_URL){const d=Object.fromEntries(new FormData(f));d.slot_start=PICK;
+ const d=Object.fromEntries(new FormData(f));d.phone=fmtPhone(digits(d.phone));d.vehicle=d.year+' '+d.make.trim()+' '+d.model.trim();
+ d.vin_or_plate=d.vin?('VIN '+d.vin+(d.plate?' / Plate '+d.plate:'')):('Plate '+d.plate);
+ try{ if(SERVER_URL){d.slot_start=PICK;
    const r=await fetch(SERVER_URL+'/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
    if(r.status===409){err.textContent='Sorry, that time was just taken. Please choose another.';btn.disabled=false;btn.textContent='Submit Request';pt.value='';loadAvail();return}
+   if(r.status===400){const j=await r.json().catch(()=>({}));err.textContent=(j.error||'Please check the form and try again.');btn.disabled=false;btn.textContent='Submit Request';return}
    if(!r.ok)throw 0;
-  } else if(FORM_ENDPOINT){const d=Object.fromEntries(new FormData(f));d._subject='New service request - '+d.name;
+  } else if(FORM_ENDPOINT){d._subject='New service request - '+d.name;
    const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
    if(!r.ok)throw 0;}
   f.style.display='none';document.getElementById('thanks').style.display='block';window.scrollTo(0,0);

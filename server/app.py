@@ -119,6 +119,40 @@ def notify(d, start, tech):
     try: send_mail(f"Service request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
     except Exception as e: app.logger.error("notify email failed: %s", e)
 
+VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
+PLATE_RE = re.compile(r"^[A-Z0-9]{2,8}$")
+def max_year(): return dt.datetime.now(TZ).year + 1
+
+def validate(d):
+    """Return (clean_dict, None) or (None, error message). Mirrors the checks in index.html."""
+    g = lambda k: str(d.get(k) or "").strip()
+    c = {k: g(k) for k in ("name", "email", "make", "model", "issue")}
+    for k, lbl in (("name", "Name"), ("make", "Make"), ("model", "Model"), ("issue", "Description of the issue")):
+        if not c[k]: return None, f"{lbl} is required."
+    digits = re.sub(r"\D", "", g("phone"))
+    if len(digits) == 11 and digits[0] == "1": digits = digits[1:]
+    if len(digits) != 10: return None, "Phone number must be exactly 10 digits."
+    c["phone"] = f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+    y = g("year")
+    if not re.fullmatch(r"\d{4}", y) or not 1950 <= int(y) <= max_year():
+        return None, f"Vehicle year must be between 1950 and {max_year()}."
+    c["year"] = y
+    vin = re.sub(r"[\s-]", "", g("vin")).upper(); plate = re.sub(r"[\s-]", "", g("plate")).upper()
+    if vin:
+        if len(vin) != 17: return None, "VIN must be exactly 17 characters."
+        if not VIN_RE.match(vin): return None, "VIN can only contain letters and numbers (no I, O or Q)."
+        plate = plate if PLATE_RE.match(plate) else ""
+    elif plate:
+        if not PLATE_RE.match(plate): return None, "License plate must be 2-8 letters or numbers."
+    else: return None, "Please enter a VIN or a license plate number."
+    c["vin"], c["plate"] = vin, plate
+    c["vehicle"] = f"{y} {c['make']} {c['model']}"
+    c["vin_or_plate"] = (f"VIN {vin}" if vin else "") + (" / " if vin and plate else "") + (f"Plate {plate}" if plate else "")
+    if c["email"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", c["email"]): return None, "Email address doesn't look right."
+    if not g("slot_start"): return None, "Please choose a time."
+    c["slot_start"] = g("slot_start")
+    return c, None
+
 @app.after_request
 def cors(r):
     r.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
@@ -141,11 +175,11 @@ def book():
     if request.method == "OPTIONS": return ("", 204)
     d = request.get_json(force=True, silent=True) or {}
     if d.get("_gotcha"): return {"ok": True}
-    for k in ("name", "phone", "vehicle", "vin_or_plate", "issue", "slot_start"):
-        if not str(d.get(k, "")).strip(): return {"ok": False, "error": "missing " + k}, 400
+    d, err = validate(d)
+    if err: return {"ok": False, "error": err}, 400
     try: start = dt.datetime.fromisoformat(d["slot_start"]).astimezone(TZ)
-    except Exception: return {"ok": False, "error": "bad slot"}, 400
-    if start not in slot_list(): return {"ok": False, "error": "slot not offered"}, 400
+    except Exception: return {"ok": False, "error": "Please choose a valid time."}, 400
+    if start not in slot_list(): return {"ok": False, "error": "That time is no longer offered. Please choose another."}, 400
     with LOCK:
         busy = busy_map([start])[start.isoformat()]
         free = [t for t in TECHS if t not in busy]
