@@ -5,7 +5,7 @@ secret MS_REFRESH_TOKEN (service aas-booking -> Environment). Nothing is written
 import os, json, time, urllib.request, urllib.parse, urllib.error
 CID = os.environ["MS_CLIENT_ID"]; B = "https://login.microsoftonline.com/consumers/oauth2/v2.0/"
 post = lambda u, d: json.load(urllib.request.urlopen(B + u, urllib.parse.urlencode(d).encode()))
-r = post("devicecode", {"client_id": CID, "scope": "Calendars.ReadWrite offline_access"})
+r = post("devicecode", {"client_id": CID, "scope": "Calendars.ReadWrite Mail.Send offline_access"})
 print(r["message"], flush=True)
 while True:
     time.sleep(r.get("interval", 5))

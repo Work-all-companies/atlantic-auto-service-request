@@ -10,5 +10,6 @@ services:
     envVars:
       - {key: ALLOWED_ORIGIN, value: "https://work-all-companies.github.io"}
       - {key: AAS_CALENDAR_ID, value: "AQMkADAwATMwMAExLWFhAGM2LWRhMjIALTAwAi0wMAoARgAAAy_ukLmpw9RCpVlFRrF6q4gHAFH8jMBOIGRCjo1Tvq4LPwoAAAIBBgAAAFH8jMBOIGRCjo1Tvq4LPwoAAAFbjvYAAAA="}
+      - {key: NOTIFY_EMAILS, value: "bkeegan@atlanticglassco.com,bschmidtke@atlanticautosalesco.com"}
       - {key: MS_CLIENT_ID, sync: false}
       - {key: MS_REFRESH_TOKEN, sync: false}

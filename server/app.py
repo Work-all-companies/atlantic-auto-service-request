@@ -19,8 +19,10 @@ ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "https://work-all-companies.gi
 CLIENT_ID = os.environ.get("MS_CLIENT_ID", "")
 CAL_ID = os.environ.get("AAS_CALENDAR_ID", "")
 TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
-SCOPES = "Calendars.ReadWrite offline_access"
+SCOPES = "Calendars.ReadWrite Mail.Send offline_access"
 GRAPH = "https://graph.microsoft.com/v1.0"
+NOTIFY_EMAILS = [e.strip() for e in os.environ.get("NOTIFY_EMAILS",
+    "bkeegan@atlanticglassco.com,bschmidtke@atlanticautosalesco.com").split(",") if e.strip()]
 FAKE_GRAPH = os.environ.get("FAKE_GRAPH")       # path to JSON list of events, for local tests
 
 app = Flask(__name__)
@@ -100,6 +102,23 @@ def busy_map(slots):
         res[s.isoformat()] = busy
     return res
 
+SENT_MAIL = []        # FAKE_GRAPH mode: messages recorded here instead of sent
+def send_mail(subject, text):
+    msg = {"message": {"subject": subject, "body": {"contentType": "Text", "content": text},
+           "toRecipients": [{"emailAddress": {"address": a}} for a in NOTIFY_EMAILS]}, "saveToSentItems": True}
+    if FAKE_GRAPH: SENT_MAIL.append(msg); return
+    req = urllib.request.Request(GRAPH + "/me/sendMail", method="POST", data=json.dumps(msg).encode(),
+        headers={"Authorization": "Bearer " + access_token(), "Content-Type": "application/json"})
+    urllib.request.urlopen(req, timeout=20).read()   # 202, empty body
+
+def notify(d, start, tech):
+    slot = start.strftime("%a %b %d, %Y %I:%M %p").replace(" 0", " ") + " CT"
+    lines = [f"Name: {d.get('name','')}", f"Phone: {d.get('phone','')}", f"Email: {d.get('email','') or '-'}",
+             f"Vehicle: {d.get('vehicle','')}", f"VIN or plate: {d.get('vin_or_plate','')}",
+             f"Issue: {d.get('issue','')}", f"Booked: {slot}", f"Tech: {tech}"]
+    try: send_mail(f"Service request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
+    except Exception as e: app.logger.error("notify email failed: %s", e)
+
 @app.after_request
 def cors(r):
     r.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
@@ -146,6 +165,7 @@ def book():
                 app.logger.error("outlook event failed: %s", e)
                 return {"ok": False, "error": "calendar unavailable, please call 712-254-6914"}, 503
         HOLDS.setdefault(start.isoformat(), {})[tech] = time.time() + HOLD_SECS
+    notify(d, start, tech)   # outside the lock; failure never fails the booking
     return {"ok": True, "slot_start": start.isoformat()}
 
 if __name__ == "__main__":

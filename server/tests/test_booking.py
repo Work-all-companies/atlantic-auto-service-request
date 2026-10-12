@@ -32,3 +32,22 @@ def test_outlook_event_blocks():
         r = A.app.test_client().get("/availability").get_json()
         assert [x for x in r["slots"] if x["start"] == s.isoformat()][0]["taken"]
     finally: json.dump([], open(f.name, "w"))
+
+def _book(hour):
+    A.HOLDS.clear(); s = [x for x in A.slot_list() if x.hour == hour][0].isoformat()
+    return A.app.test_client().post("/book", json={"name": "Jo", "phone": "555", "email": "jo@x.com",
+        "vehicle": "2015 F-150", "vin_or_plate": "ABC123", "issue": "brakes", "slot_start": s})
+
+def test_mail_both_and_failure_safe():
+    A.SENT_MAIL.clear()
+    r = _book(14); assert r.status_code == 200
+    m = A.SENT_MAIL[-1]["message"]
+    assert [x["emailAddress"]["address"] for x in m["toRecipients"]] == [
+        "bkeegan@atlanticglassco.com", "bschmidtke@atlanticautosalesco.com"]
+    assert m["subject"].startswith("Service request: Jo - 2015 F-150 - ")
+    for k in ("Phone: 555", "jo@x.com", "ABC123", "brakes", "Tech: Brandon", "2:00 PM"): assert k in m["body"]["content"]
+    orig = A.send_mail
+    def boom(*a): raise RuntimeError("graph down")
+    A.send_mail = boom
+    try: assert _book(15).status_code == 200
+    finally: A.send_mail = orig
