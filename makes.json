@@ -1,0 +1,198 @@
+[
+{
+"name": "Acura",
+"id": 475
+},
+{
+"name": "Alfa Romeo",
+"id": 493
+},
+{
+"name": "Audi",
+"id": 582
+},
+{
+"name": "BMW",
+"id": 452
+},
+{
+"name": "Buick",
+"id": 468
+},
+{
+"name": "Cadillac",
+"id": 469
+},
+{
+"name": "Chevrolet",
+"id": 467
+},
+{
+"name": "Chrysler",
+"id": 477
+},
+{
+"name": "Dodge",
+"id": 476
+},
+{
+"name": "Fiat",
+"id": 492
+},
+{
+"name": "Ford",
+"id": 460
+},
+{
+"name": "Freightliner",
+"id": 450
+},
+{
+"name": "GMC",
+"id": 472
+},
+{
+"name": "Genesis",
+"id": 5083
+},
+{
+"name": "Honda",
+"id": 474
+},
+{
+"name": "Hummer",
+"id": 951
+},
+{
+"name": "Hyundai",
+"id": 498
+},
+{
+"name": "Infiniti",
+"id": 480
+},
+{
+"name": "International",
+"id": 526
+},
+{
+"name": "Isuzu",
+"id": 542
+},
+{
+"name": "Jaguar",
+"id": 442
+},
+{
+"name": "Jeep",
+"id": 483
+},
+{
+"name": "Kenworth",
+"id": 532
+},
+{
+"name": "Kia",
+"id": 499
+},
+{
+"name": "Land Rover",
+"id": 444
+},
+{
+"name": "Lexus",
+"id": 515
+},
+{
+"name": "Lincoln",
+"id": 464
+},
+{
+"name": "Mack",
+"id": 490
+},
+{
+"name": "Mazda",
+"id": 473
+},
+{
+"name": "Mercedes-Benz",
+"id": 449
+},
+{
+"name": "Mercury",
+"id": 465
+},
+{
+"name": "Mini",
+"id": 456
+},
+{
+"name": "Mitsubishi",
+"id": 481
+},
+{
+"name": "Nissan",
+"id": 478
+},
+{
+"name": "Oldsmobile",
+"id": 4162
+},
+{
+"name": "Peterbilt",
+"id": 495
+},
+{
+"name": "Plymouth",
+"id": 2409
+},
+{
+"name": "Pontiac",
+"id": 536
+},
+{
+"name": "Porsche",
+"id": 584
+},
+{
+"name": "Ram",
+"id": 496
+},
+{
+"name": "Rivian",
+"id": 10887
+},
+{
+"name": "Saab",
+"id": 572
+},
+{
+"name": "Saturn",
+"id": 1056
+},
+{
+"name": "Subaru",
+"id": 523
+},
+{
+"name": "Suzuki",
+"id": 509
+},
+{
+"name": "Tesla",
+"id": 441
+},
+{
+"name": "Toyota",
+"id": 448
+},
+{
+"name": "Volkswagen",
+"id": 482
+},
+{
+"name": "Volvo",
+"id": 485
+}
+]

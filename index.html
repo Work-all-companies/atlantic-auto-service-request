@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="Request service online or call 712-254-6914">
 <meta property="og:title" content="Atlantic Service &amp; Repair: Request Service">
 <meta property="og:description" content="Request service online or call 712-254-6914">
@@ -42,8 +42,8 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <label for="phone">Phone</label><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(712) 555-1234" maxlength="14" required><p class="ferr" id="e-phone"></p>
 <label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email"><p class="ferr" id="e-email"></p>
 <div class="row3"><div><label for="year">Year</label><select id="year" name="year" required><option value="">Year</option></select></div>
-<div><label for="make">Make</label><input id="make" name="make" placeholder="e.g. Ford" required></div>
-<div><label for="model">Model</label><input id="model" name="model" placeholder="e.g. F-150" required></div></div>
+<div><label for="make_sel">Make</label><select id="make_sel" disabled><option value="">Pick year first</option></select><input id="make" name="make" placeholder="Type the make" style="display:none;margin-top:6px"></div>
+<div><label for="model_sel">Model</label><select id="model_sel" disabled><option value="">Pick make first</option></select><input id="model" name="model" placeholder="Type the model" style="display:none;margin-top:6px"></div></div>
 <p class="ferr" id="e-vehicle"></p>
 <label for="vin">VIN <span class="opt">(or enter a license plate below)</span></label><input id="vin" name="vin" placeholder="17-character VIN" maxlength="17" autocapitalize="characters" autocomplete="off" spellcheck="false"><p class="ferr" id="e-vin"></p>
 <label for="plate">License plate number <span class="opt">(if no VIN)</span></label><input id="plate" name="plate" placeholder="e.g. ABC123" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false"><p class="ferr" id="e-plate"></p>
@@ -59,6 +59,8 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Service &amp; Repair will call you shortly to set up an inspection time.</p><p>Questions? Call <a href="tel:+17122546914">712-254-6914</a></p></div>
 </div></main><footer>&copy; Atlantic Service &amp; Repair</footer>
 <script>
+const FORM_VERSION='2026-10-12c';
+(function(){try{fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/FORM_VERSION='([^']+)'/);if(m&&m[1]!==FORM_VERSION&&!sessionStorage.getItem('reloaded'+m[1])){sessionStorage.setItem('reloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1])}}).catch(()=>{})}catch(_){}})();
 // ===== CONFIG: set to your form endpoint (e.g. "https://formspree.io/f/XXXX"
 // or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
 const FORM_ENDPOINT = "";
@@ -97,7 +99,25 @@ const f=document.getElementById('f'),err=document.getElementById('err'),btn=docu
 const $=id=>document.getElementById(id);
 const MAXY=new Date().getFullYear()+1,MINY=1950;
 for(let y=MAXY;y>=MINY;y--){const o=document.createElement('option');o.value=o.textContent=y;$('year').appendChild(o)}
-const FIELD={name:['name'],phone:['phone'],email:['email'],vehicle:['year','make','model'],vin:['vin'],plate:['plate'],issue:['issue'],slot:[]};
+const OTHER='__other__';let MAKES=null;
+function opts(sel,list,first){sel.innerHTML='';const o0=document.createElement('option');o0.value='';o0.textContent=first;sel.appendChild(o0);
+ for(const x of list){const o=document.createElement('option');o.value=x.v;o.textContent=x.t;if(x.id)o.dataset.id=x.id;sel.appendChild(o)}
+ const oo=document.createElement('option');oo.value=OTHER;oo.textContent='Other / not listed';sel.appendChild(oo);sel.disabled=false}
+function other(box,on){box.style.display=on?'block':'none';box.value='';if(on)box.focus()}
+function loadMakes(){const ms=$('make_sel');ms.disabled=true;ms.innerHTML='<option value="">Loading makes\u2026</option>';
+ (MAKES?Promise.resolve(MAKES):fetch('makes.json?v='+FORM_VERSION).then(r=>r.json()).catch(()=>[])).then(l=>{MAKES=l;
+  opts(ms,l.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>({v:m.name,t:m.name,id:m.id})),'Choose make')})}
+function loadModels(){const ms=$('make_sel'),md=$('model_sel'),y=$('year').value,o=ms.selectedOptions[0];other($('model'),false);
+ if(!ms.value){md.disabled=true;md.innerHTML='<option value="">Pick make first</option>';return}
+ if(ms.value===OTHER||!o.dataset.id){opts(md,[],'Choose model');md.value=OTHER;other($('model'),true);return}
+ md.disabled=true;md.innerHTML='<option value="">Loading models\u2026</option>';
+ fetch('https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeIdYear/makeId/'+o.dataset.id+'/modelyear/'+y+'?format=json').then(r=>{if(!r.ok)throw 0;return r.json()})
+  .then(j=>[...new Set((j.Results||[]).map(r=>String(r.Model_Name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})))
+  .catch(()=>[]).then(l=>{if($('make_sel').value!==ms.value||$('year').value!==y)return;opts(md,l.map(m=>({v:m,t:m})),l.length?'Choose model':'No list found \u2013 pick Other');if(!l.length){md.value=OTHER;other($('model'),true)}})}
+$('year').addEventListener('change',()=>{const ms=$('make_sel');if(!$('year').value){ms.disabled=true;ms.innerHTML='<option value="">Pick year first</option>';$('make').value='';other($('make'),false)}else if(ms.disabled||!MAKES)loadMakes();else loadModels()});
+$('make_sel').addEventListener('change',()=>{const v=$('make_sel').value;if(v===OTHER)other($('make'),true);else{other($('make'),false);$('make').value=v}loadModels()});
+$('model_sel').addEventListener('change',()=>{const v=$('model_sel').value;if(v===OTHER)other($('model'),true);else{other($('model'),false);$('model').value=v}});
+const FIELD={name:['name'],phone:['phone'],email:['email'],vehicle:['year','make_sel','model_sel','make','model'],vin:['vin'],plate:['plate'],issue:['issue'],slot:[]};
 function setE(k,m){const e=$('e-'+k);if(e)e.textContent=m||'';FIELD[k].forEach(id=>$(id).classList.toggle('bad',!!m))}
 const digits=v=>{let d=v.replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);return d.slice(0,10)};
 function fmtPhone(d){if(d.length<4)return d.length?'('+d:'';if(d.length<7)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
@@ -109,7 +129,7 @@ const CHECK={
  phone:()=>digits($('phone').value).length===10?'':'Please enter a 10-digit phone number, like (712) 555-1234.',
  email:()=>{const v=$('email').value.trim();return !v||/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)?'':'That email address doesn\u2019t look right (or leave it blank).'},
  vehicle:()=>{const y=+$('year').value;if(!(y>=MINY&&y<=MAXY))return 'Please choose the vehicle year ('+MINY+'\u2013'+MAXY+').';
-  if(!$('make').value.trim())return 'Please enter the vehicle make (e.g. Ford).';if(!$('model').value.trim())return 'Please enter the vehicle model (e.g. F-150).';return ''},
+  if(!$('make').value.trim())return 'Please choose the vehicle make (or Other and type it).';if(!$('model').value.trim())return 'Please choose the vehicle model (or Other and type it).';return ''},
  vin:()=>{const v=$('vin').value;if(!v)return $('plate').value?'':'Please enter a VIN or a license plate number.';
   if(v.length!==17)return 'VIN must be exactly 17 characters (you have '+v.length+').';if(/[IOQ]/.test(v))return 'VINs never contain the letters I, O or Q. Check for 1 or 0 instead.';return ''},
  plate:()=>{const v=$('plate').value;if(!v||$('vin').value)return '';return /^[A-Z0-9]{2,8}$/.test(v)?'':'License plate must be 2\u20138 letters or numbers.'},
@@ -130,8 +150,7 @@ f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
  try{ if(SERVER_URL){d.slot_start=PICK;
    const r=await fetch(SERVER_URL+'/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
    if(r.status===409){err.textContent='Sorry, that time was just taken. Please choose another.';btn.disabled=false;btn.textContent='Submit Request';pt.value='';loadAvail();return}
-   if(r.status===400){const j=await r.json().catch(()=>({}));err.textContent=(j.error||'Please check the form and try again.');btn.disabled=false;btn.textContent='Submit Request';return}
-   if(!r.ok)throw 0;
+   if(!r.ok){const j=await r.json().catch(()=>({}));err.textContent=(j.error||'Sorry, something went wrong. Please call the shop at 712-254-6914.');btn.disabled=false;btn.textContent='Submit Request';return}
   } else if(FORM_ENDPOINT){d._subject='New service request - '+d.name;
    const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
    if(!r.ok)throw 0;}

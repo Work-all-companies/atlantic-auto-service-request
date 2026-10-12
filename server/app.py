@@ -124,7 +124,33 @@ PLATE_RE = re.compile(r"^[A-Z0-9]{2,8}$")
 def max_year(): return dt.datetime.now(TZ).year + 1
 
 def validate(d):
-    """Return (clean_dict, None) or (None, error message). Mirrors the checks in index.html."""
+    """Return (clean_dict, None) or (None, error message). Never raises."""
+    try: return _validate(d if isinstance(d, dict) else {})
+    except Exception as e:
+        app.logger.error("validate failed: %s", e)
+        return None, "Please check the form and try again."
+
+def _legacy(d):
+    """Old cached form: single 'vehicle' text + 'vin_or_plate'. Map onto new fields."""
+    d = dict(d)
+    if not any(str(d.get(k) or "").strip() for k in ("year", "make", "model")) and str(d.get("vehicle") or "").strip():
+        v = str(d["vehicle"]).strip()
+        m = re.match(r"^\s*'?(\d{2,4})\b\s*(.*)$", v)
+        if m:
+            y = m.group(1); y = ("20" + y if int(y) <= max_year() % 100 else "19" + y) if len(y) == 2 else y
+            rest = m.group(2).split(None, 1)
+            d["year"] = y; d["make"] = rest[0] if rest else ""; d["model"] = rest[1] if len(rest) > 1 else (rest[0] if rest else "")
+        else:
+            d["year"] = ""; d["make"] = v; d["model"] = v
+    if not str(d.get("vin") or "").strip() and not str(d.get("plate") or "").strip() and str(d.get("vin_or_plate") or "").strip():
+        x = re.sub(r"^(vin|plate)\s*", "", str(d["vin_or_plate"]).strip(), flags=re.I)
+        x2 = re.sub(r"[\s-]", "", x)
+        if len(x2) == 17: d["vin"] = x2
+        else: d["plate"] = x2
+    return d
+
+def _validate(d):
+    d = _legacy(d)
     g = lambda k: str(d.get(k) or "").strip()
     c = {k: g(k) for k in ("name", "email", "make", "model", "issue")}
     for k, lbl in (("name", "Name"), ("make", "Make"), ("model", "Model"), ("issue", "Description of the issue")):
@@ -161,6 +187,16 @@ def cors(r):
     r.headers["Cache-Control"] = "no-store"
     return r
 
+@app.errorhandler(Exception)
+def on_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        r = jsonify({"ok": False, "error": e.description or e.name}); r.status_code = e.code or 500
+    else:
+        app.logger.exception("unhandled error")
+        r = jsonify({"ok": False, "error": "Something went wrong on our end. Please call the shop at 712-254-6914."}); r.status_code = 500
+    return cors(r)
+
 @app.get("/health")
 def health(): return {"ok": True}
 
@@ -173,7 +209,8 @@ def availability():
 @app.route("/book", methods=["POST", "OPTIONS"])
 def book():
     if request.method == "OPTIONS": return ("", 204)
-    d = request.get_json(force=True, silent=True) or {}
+    d = request.get_json(force=True, silent=True)
+    if not isinstance(d, dict): d = {}
     if d.get("_gotcha"): return {"ok": True}
     d, err = validate(d)
     if err: return {"ok": False, "error": err}, 400

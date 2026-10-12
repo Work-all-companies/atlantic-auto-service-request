@@ -106,3 +106,34 @@ def test_event_title_and_mail_use_new_fields():
     assert r.status_code == 200
     m = A.SENT_MAIL[-1]["message"]
     assert "Vehicle: 2015 Ford F-150" in m["body"]["content"] and "VIN 1FTEW1EP5JFA12345" in m["body"]["content"]
+
+def _legacy_payload(**kw):
+    p = {"name": "Old Form", "phone": "7125551234", "email": "", "vehicle": "2029 Ford F150",
+         "vin_or_plate": "XYZ9876", "issue": "noise", "slot_start": _slot(9)}
+    p.update(kw); return p
+
+def test_legacy_year_too_high_400():
+    r = A.app.test_client().post("/book", json=_legacy_payload())
+    assert r.status_code == 400 and "year" in r.get_json()["error"].lower()
+    assert r.headers.get("Access-Control-Allow-Origin")
+
+def test_legacy_good_accepted():
+    r = A.app.test_client().post("/book", json=_legacy_payload(vehicle="2018 Ford F-150", slot_start=_slot(14)))
+    assert r.status_code == 200, r.get_json()
+
+def test_legacy_no_year_400():
+    r = A.app.test_client().post("/book", json=_legacy_payload(vehicle="Ford truck"))
+    assert r.status_code == 400
+
+def test_garbage_never_raises():
+    for body in ([1, 2], "x", {"year": {"a": 1}, "make": ["x"]}, {"vehicle": 5}, None):
+        r = A.app.test_client().post("/book", json=body)
+        assert r.status_code == 400, (body, r.status_code)
+
+def test_500_is_json_with_cors(monkeypatch):
+    def boom(*a, **k): raise RuntimeError("x")
+    monkeypatch.setattr(A, "slot_list", boom)
+    A.app.config["PROPAGATE_EXCEPTIONS"] = False
+    r = A.app.test_client().get("/availability")
+    assert r.status_code == 500 and r.get_json()["ok"] is False
+    assert r.headers.get("Access-Control-Allow-Origin")
