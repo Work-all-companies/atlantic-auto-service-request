@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Request Service | Atlantic Auto Service</title>
+<meta name="description" content="Request service online or call 712-254-6914">
+<meta property="og:title" content="Atlantic Service &amp; Repair: Request Service">
+<meta property="og:description" content="Request service online or call 712-254-6914">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://work-all-companies.github.io/atlantic-auto-service-request/">
+<meta property="og:image" content="https://work-all-companies.github.io/atlantic-auto-service-request/og-image.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Atlantic Service &amp; Repair: Request Service">
+<meta name="twitter:description" content="Request service online or call 712-254-6914">
+<meta name="twitter:image" content="https://work-all-companies.github.io/atlantic-auto-service-request/og-image.png">
+<title>Request Service | Atlantic Service &amp; Repair</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f5;color:#1d2433}
 header{background:#12305a;color:#fff;text-align:center;padding:22px 16px}header h1{margin:0;font-size:1.6rem}header p{margin:6px 0 0;opacity:.85;font-size:.9rem}
@@ -12,7 +23,7 @@ button{margin-top:20px;width:100%;padding:14px;font-size:1.05rem;font-weight:700
 button:disabled{opacity:.6}.note{font-size:.85rem;color:#4b5563}.err{color:#c8102e;font-size:.9rem}#thanks{display:none;text-align:center}
 footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 </style></head><body>
-<header><h1>Atlantic Auto Service</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM (closed noon&ndash;1)</p></header>
+<header><h1>Atlantic Service &amp; Repair</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM (closed noon&ndash;1)</p><p><a href="tel:+17122546914" style="color:#fff;font-weight:700">Call 712-254-6914</a></p></header>
 <main><div class="card">
 <form id="f" novalidate>
 <h2>Request Service</h2>
@@ -26,8 +37,8 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <p id="err" class="err"></p>
 <button id="btn" type="submit">Submit Request</button>
 </form>
-<div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Auto Service will call you shortly to set up an inspection time.</p></div>
-</div></main><footer>&copy; Atlantic Auto Service</footer>
+<div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Service &amp; Repair will call you shortly to set up an inspection time.</p><p>Questions? Call <a href="tel:+17122546914">712-254-6914</a></p></div>
+</div></main><footer>&copy; Atlantic Service &amp; Repair</footer>
 <script>
 // ===== CONFIG: set to your form endpoint (e.g. "https://formspree.io/f/XXXX"
 // or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
@@ -41,6 +52,6 @@ f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
    const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
    if(!r.ok)throw 0;}
   f.style.display='none';document.getElementById('thanks').style.display='block';window.scrollTo(0,0);
- }catch(_){err.textContent='Sorry, something went wrong. Please call the shop.';btn.disabled=false;btn.textContent='Submit Request';}
+ }catch(_){err.textContent='Sorry, something went wrong. Please call the shop at 712-254-6914.';btn.disabled=false;btn.textContent='Submit Request';}
 });
 </script></body></html>
