@@ -80,7 +80,7 @@ def outlook_events(start, end):
 
 def techs_in(subject):
     m = re.match(r"\s*(brandon|kolby)\b", subject, re.I)
-    return {m.group(1).capitalize()} if m else set(TECHS)   # no tech name -> blocks both
+    return {m.group(1).capitalize()} if m else set()   # no tech name at start -> ignored (slot stays open)
 
 # ---------- availability ----------
 def slot_list():

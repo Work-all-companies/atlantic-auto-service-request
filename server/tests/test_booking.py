@@ -23,15 +23,27 @@ def test_two_per_hour():
 def test_noon_one():
     res, _ = hammer(12); assert res.count(200) == 1 and res.count(409) == 29
 
-def test_outlook_event_blocks():
-    A.HOLDS.clear(); s = [x for x in A.slot_list() if x.hour == 10][0]
+def _avail_with(subject, hour):
+    A.HOLDS.clear(); s = [x for x in A.slot_list() if x.hour == hour][0]
     u = s.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     e = (s + dt.timedelta(hours=1)).astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    json.dump([{"subject": "oil change", "start": {"dateTime": u}, "end": {"dateTime": e}}], open(f.name, "w"))
+    json.dump([{"subject": subject, "start": {"dateTime": u}, "end": {"dateTime": e}}], open(f.name, "w"))
     try:
         r = A.app.test_client().get("/availability").get_json()
-        assert [x for x in r["slots"] if x["start"] == s.isoformat()][0]["taken"]
+        return [x for x in r["slots"] if x["start"] == s.isoformat()][0], A.busy_map([s])[s.isoformat()]
     finally: json.dump([], open(f.name, "w"))
+
+def test_untagged_event_ignored():
+    slot, busy = _avail_with("2014 CHRYSLER TOWN AND COUNTRY", 10)
+    assert not slot["taken"] and busy == set()
+    slot, busy = _avail_with("oil change", 12)
+    assert not slot["taken"] and busy == set()
+
+def test_tagged_event_blocks_only_that_tech():
+    slot, busy = _avail_with("kolby - 2014 Chrysler", 10)
+    assert busy == {"Kolby"} and not slot["taken"]
+    slot, busy = _avail_with("Brandon - Customer: X - Y", 12)
+    assert busy == {"Brandon"} and slot["taken"]
 
 def _book(hour):
     A.HOLDS.clear(); s = [x for x in A.slot_list() if x.hour == hour][0].isoformat()
