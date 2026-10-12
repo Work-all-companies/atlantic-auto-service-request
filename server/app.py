@@ -9,7 +9,9 @@ from flask import Flask, request, jsonify
 
 TZ = ZoneInfo("America/Chicago")
 TECHS = ["Brandon", "Kolby"]                      # preference order
-SLOT_HOURS = [8, 9, 10, 11, 13, 14, 15, 16]
+SLOT_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16]
+CAPACITY = {12: 1}                                # noon slot: one tech only; others hold len(TECHS)
+cap = lambda h: CAPACITY.get(h, len(TECHS))
 DAYS_AHEAD = 30
 DB = os.environ.get("DB_PATH", "bookings.db")
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "https://work-all-companies.github.io")
@@ -118,7 +120,7 @@ def health(): return {"ok": True}
 def availability():
     slots = slot_list(); bm = busy_map(slots, db())
     # customers only see open / taken
-    return jsonify({"slots": [{"start": k, "taken": len(v) >= len(TECHS)} for k, v in bm.items()]})
+    return jsonify({"slots": [{"start": k, "taken": len(v) >= cap(dt.datetime.fromisoformat(k).hour)} for k, v in bm.items()]})
 
 @app.route("/book", methods=["POST", "OPTIONS"])
 def book():
@@ -135,7 +137,7 @@ def book():
         try:
             busy = busy_map([start], c)[start.isoformat()]
             free = [t for t in TECHS if t not in busy]
-            if not free:
+            if not free or len(busy) >= cap(start.hour):
                 c.execute("ROLLBACK"); return {"ok": False, "error": "taken"}, 409
             tech = free[0]
             c.execute("INSERT INTO bookings(slot_start,tech,name,phone,email,vehicle,vin,issue,created) VALUES(?,?,?,?,?,?,?,?,?)",

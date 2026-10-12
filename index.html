@@ -31,7 +31,7 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 .day,.slot{width:auto;margin:0;font-weight:500}.slot{width:100%}
 .slot small{display:block;font-size:.75rem}
 </style></head><body>
-<header><h1>Atlantic Service &amp; Repair</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM (closed noon&ndash;1)</p><p><a href="tel:+17122546914" style="color:#fff;font-weight:700">Call 712-254-6914</a></p></header>
+<header><h1>Atlantic Service &amp; Repair</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM, open through lunch</p><p><a href="tel:+17122546914" style="color:#fff;font-weight:700">Call 712-254-6914</a></p></header>
 <main><div class="card">
 <form id="f" novalidate>
 <h2>Request Service</h2>
@@ -61,7 +61,7 @@ const FORM_ENDPOINT = "";
 // SERVER_URL: booking server (e.g. "https://aas-booking.onrender.com"). Empty = use static busy.json.
 const SERVER_URL = "";
 let TAKEN=null,PICK=null;
-const SLOTS=[8,9,10,11,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
+const SLOTS=[8,9,10,11,12,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
 const fmtH=h=>{const a=h<12?'AM':'PM',x=h%12||12;return x+' '+a};
 function chi(d){const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23',minute:'2-digit'}).formatToParts(d).reduce((o,x)=>(o[x.type]=x.value,o),{});return p}
 function off(ymd){const d=new Date(ymd+'T12:00:00Z');const p=chi(d);return (12-(+p.hour))}// hours CT is behind UTC
