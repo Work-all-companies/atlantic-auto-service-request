@@ -137,3 +137,21 @@ def test_500_is_json_with_cors(monkeypatch):
     r = A.app.test_client().get("/availability")
     assert r.status_code == 500 and r.get_json()["ok"] is False
     assert r.headers.get("Access-Control-Allow-Origin")
+
+def test_central_america_zone_event_uses_wall_clock():
+    # Outlook set to "Central America Standard Time" (UTC-6, no DST): Brett types 12-1 PM,
+    # Graph stores 18:00Z. During CDT that must still block the noon slot, not 1 PM.
+    A.HOLDS.clear()
+    s = [x for x in A.slot_list() if x.hour == 12][0]
+    wall = s.replace(tzinfo=None)
+    u = (wall + dt.timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S")
+    e = (wall + dt.timedelta(hours=7)).strftime("%Y-%m-%dT%H:%M:%S")
+    json.dump([{"subject": "Brandon - 2013 chevrolet cruze oil change", "start": {"dateTime": u},
+                "end": {"dateTime": e}, "originalStartTimeZone": "Central America Standard Time"}], open(f.name, "w"))
+    try:
+        assert A.busy_map([s])[s.isoformat()] == {"Brandon"}
+        one = s + dt.timedelta(hours=1)
+        assert A.busy_map([one])[one.isoformat()] == set()
+        r = A.app.test_client().post("/book", json=dict(GOOD, slot_start=s.isoformat()))
+        assert r.status_code == 409
+    finally: json.dump([], open(f.name, "w"))

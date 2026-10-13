@@ -61,7 +61,7 @@ def outlook_events(start, end):
     else:
         q = urllib.parse.urlencode({"startDateTime": start.astimezone(dt.timezone.utc).isoformat(),
             "endDateTime": end.astimezone(dt.timezone.utc).isoformat(), "$top": "500",
-            "$select": "subject,start,end,showAs,isAllDay,isCancelled"})
+            "$select": "subject,start,end,showAs,isAllDay,isCancelled,originalStartTimeZone"})
         path = f"/me/calendars/{CAL_ID}/calendarView?{q}"; raw = []
         while path:
             r = graph("GET", path); raw += r["value"]
@@ -75,8 +75,17 @@ def outlook_events(start, end):
         else:
             s = dt.datetime.fromisoformat(e["start"]["dateTime"][:19]).replace(tzinfo=dt.timezone.utc)
             en = dt.datetime.fromisoformat(e["end"]["dateTime"][:19]).replace(tzinfo=dt.timezone.utc)
+            fixed = FIXED_CENTRAL.get(e.get("originalStartTimeZone") or "")
+            if fixed is not None:
+                # Typed in Outlook set to a no-DST "Central" zone (e.g. Central America, UTC-6):
+                # the shop means the wall-clock time they typed, in Chicago time.
+                s = (s + fixed).replace(tzinfo=None).replace(tzinfo=TZ)
+                en = (en + fixed).replace(tzinfo=None).replace(tzinfo=TZ)
         out.append((s, en, e.get("subject") or ""))
     return out
+
+FIXED_CENTRAL = {"Central America Standard Time": dt.timedelta(hours=-6),
+                 "Canada Central Standard Time": dt.timedelta(hours=-6)}
 
 def techs_in(subject):
     m = re.match(r"\s*(brandon|kolby)\b", subject, re.I)
