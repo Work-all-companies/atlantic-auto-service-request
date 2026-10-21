@@ -59,8 +59,8 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Service &amp; Repair will call you shortly to confirm your appointment time.</p><p>Questions? Call <a href="tel:+17122546914">712-254-6914</a></p></div>
 </div></main><footer>&copy; Atlantic Service &amp; Repair</footer>
 <script>
-const FORM_VERSION='2026-10-12f';
-(function(){try{fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/FORM_VERSION='([^']+)'/);if(m&&m[1]!==FORM_VERSION&&!sessionStorage.getItem('reloaded'+m[1])){sessionStorage.setItem('reloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1])}}).catch(()=>{})}catch(_){}})();
+const FORM_VERSION='2026-10-21a';
+(function(){try{fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{const m=t.match(/FORM_VERSION='([^']+)'/);if(m&&m[1]!==FORM_VERSION&&!sessionStorage.getItem('reloaded'+m[1])){sessionStorage.setItem('reloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]+(/[?&]src=qr\b/i.test(location.search)?'&src=qr':''))}}).catch(()=>{})}catch(_){}})();
 // ===== CONFIG: set to your form endpoint (e.g. "https://formspree.io/f/XXXX"
 // or "https://formsubmit.co/ajax/you@example.com"). Empty = no submission sent (demo mode).
 const FORM_ENDPOINT = "";
@@ -68,6 +68,13 @@ const FORM_ENDPOINT = "";
 // ===== Appointment picker (busy.json is refreshed by GitHub Actions from the shop calendar) =====
 // SERVER_URL: booking server (e.g. "https://aas-booking.onrender.com"). Empty = use static busy.json.
 const SERVER_URL = "https://aas-booking.onrender.com";
+// private visit counter (never shown to customers; failures ignored)
+(function(){try{if(!SERVER_URL||sessionStorage.getItem('aasPinged'))return;sessionStorage.setItem('aasPinged','1');
+ var q=new URLSearchParams(location.search),src=/^qr$/i.test(q.get('src')||q.get('source')||'')?'qr':'link',n=0,ft=0,today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});
+ try{if(!localStorage.getItem('aasVid')){localStorage.setItem('aasVid',Math.random().toString(36).slice(2));n=1}if(localStorage.getItem('aasDay')!==today){localStorage.setItem('aasDay',today);ft=1}}catch(_){}
+ var b=JSON.stringify({src:src,new:n,first_today:ft});
+ if(navigator.sendBeacon&&navigator.sendBeacon(SERVER_URL+'/visit',new Blob([b],{type:'text/plain'})))return;
+ fetch(SERVER_URL+'/visit',{method:'POST',body:b,mode:'no-cors',keepalive:true}).catch(function(){})}catch(_){}})();
 let TAKEN=null,PICK=null;
 const SLOTS=[8,9,10,11,12,13,14,15,16],DAYS_AHEAD=30;let BUSY=[];
 const fmtH=h=>{const a=h<12?'AM':'PM',x=h%12||12;return x+' '+a};

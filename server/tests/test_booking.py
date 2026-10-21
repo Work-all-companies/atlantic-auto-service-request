@@ -2,6 +2,7 @@
 import os, json, tempfile, datetime as dt, threading
 f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False); json.dump([], f); f.close()
 os.environ["FAKE_GRAPH"] = f.name
+os.environ["STATS_NO_THREAD"] = "1"
 import sys; sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import app as A
 GOOD = {"name": "Jo", "phone": "(712) 555-1234", "email": "jo@x.com", "year": "2015", "make": "Ford",
@@ -155,3 +156,36 @@ def test_central_america_zone_event_uses_wall_clock():
         r = A.app.test_client().post("/book", json=dict(GOOD, slot_start=s.isoformat()))
         assert r.status_code == 409
     finally: json.dump([], open(f.name, "w"))
+
+# ---------- visit stats ----------
+import hashlib
+def _stats_setup(tmp_path):
+    A.STATS_FAKE = str(tmp_path / "stats.json"); A.PENDING.clear()
+    A.STATS_KEY_SHA256 = hashlib.sha256(b"k3y").hexdigest()
+
+def test_visits_counted_and_persist(tmp_path):
+    _stats_setup(tmp_path); c = A.app.test_client()
+    assert c.post("/visit", data='{"src":"qr","new":1,"first_today":1}', content_type="text/plain").status_code == 204
+    c.post("/visit", json={"src": "link"}); c.post("/visit", json={"src": "bogus"})
+    assert A.stats_flush() and not A.PENDING
+    c.post("/visit", json={"src": "qr"})            # still pending, must show too
+    t = c.get("/stats?key=k3y").get_json()["totals"]
+    assert (t["qr"], t["link"], t["unique_qr"], t["new_visitors"], t["visits"]) == (2, 2, 1, 1, 4)
+    A.stats_flush(); A.PENDING.clear()              # simulate restart: memory gone, file remains
+    assert c.get("/stats?key=k3y").get_json()["totals"]["visits"] == 4
+
+def test_stats_needs_key(tmp_path):
+    _stats_setup(tmp_path); c = A.app.test_client()
+    assert c.get("/stats").status_code == 404 and c.get("/stats?key=nope").status_code == 404
+
+def test_booking_counted(tmp_path):
+    _stats_setup(tmp_path)
+    assert _book(15).status_code == 200
+    assert A.PENDING[dt.datetime.now(A.TZ).date().isoformat()]["bookings"] == 1
+
+def test_flush_failure_keeps_counts(tmp_path):
+    _stats_setup(tmp_path); A.stat_bump("qr")
+    orig = A.stats_save; A.stats_save = lambda d: (_ for _ in ()).throw(RuntimeError("x"))
+    try: assert not A.stats_flush()
+    finally: A.stats_save = orig
+    assert sum(v.get("qr", 0) for v in A.PENDING.values()) == 1

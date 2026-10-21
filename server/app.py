@@ -5,7 +5,7 @@ Each slot holds 2 jobs (Brandon, Kolby), noon holds 1. A booking is check + crea
 under one process lock, so two customers can never take the same last spot. Holds made in this
 process are also kept in memory briefly in case Graph lags. Run with ONE worker.
 Auth: MS_REFRESH_TOKEN env var (Render secret); rotated tokens are kept in memory only."""
-import os, json, threading, datetime as dt, re, time, urllib.request, urllib.parse
+import os, json, threading, hashlib, hmac, atexit, datetime as dt, re, time, urllib.request, urllib.parse
 from zoneinfo import ZoneInfo
 from flask import Flask, request, jsonify
 
@@ -188,6 +188,100 @@ def _validate(d):
     c["slot_start"] = g("slot_start")
     return c, None
 
+
+# ---------- private visit stats ----------
+# Counts live in a separate Outlook calendar "AAS Stats" (not AAS SHOP) as a JSON extended property on
+# one placeholder event dated 2000-01-01, so they survive Render restarts with no disk/GitHub access.
+# Pings are batched in memory and flushed at most every STATS_FLUSH_SECS (and at shutdown).
+STATS_KEY_SHA256 = os.environ.get("STATS_KEY_SHA256", "dc9f64169a06b5727748886111f58b0af51be3944c9216e7cdb9480d2409aa68")
+STATS_CAL_NAME = "AAS Stats"; STATS_SUBJECT = "AAS-STATS-DATA (do not delete)"
+STATS_PROP = "String {6f1c3a52-8f0e-4b8e-9f43-2a7d5c1e9b10} Name aasStats"
+STATS_FLUSH_SECS = int(os.environ.get("STATS_FLUSH_SECS", "60"))
+STATS_FAKE = os.environ.get("STATS_FAKE")           # path to local JSON file, for tests
+SLOCK = threading.Lock(); PENDING = {}               # day -> {field: n}
+_sref = {}
+COUNT_FIELDS = ("qr", "link", "unique_qr", "unique_link", "new_visitors", "bookings")
+
+def stat_bump(field, n=1):
+    if field not in COUNT_FIELDS: return
+    day = dt.datetime.now(TZ).date().isoformat()
+    with SLOCK:
+        d = PENDING.setdefault(day, {}); d[field] = d.get(field, 0) + n
+
+def _stats_event():
+    if "ev" in _sref: return _sref["cal"], _sref["ev"]
+    q = urllib.parse.quote(f"name eq '{STATS_CAL_NAME}'")
+    cals = graph("GET", f"/me/calendars?$filter={q}")["value"]
+    cal = cals[0]["id"] if cals else graph("POST", "/me/calendars", {"name": STATS_CAL_NAME})["id"]
+    pid = urllib.parse.quote(f"id eq '{STATS_PROP}'")
+    sq = urllib.parse.quote(f"subject eq '{STATS_SUBJECT}'")
+    evs = graph("GET", f"/me/calendars/{cal}/events?$filter={sq}&$select=id&$expand=singleValueExtendedProperties($filter={pid})")["value"]
+    if evs: ev = evs[0]["id"]
+    else:
+        ev = graph("POST", f"/me/calendars/{cal}/events", {"subject": STATS_SUBJECT, "showAs": "free",
+            "isReminderOn": False, "body": {"contentType": "text", "content": "Form visit counts. Do not delete."},
+            "start": {"dateTime": "2000-01-01T00:00:00", "timeZone": "UTC"}, "end": {"dateTime": "2000-01-01T00:30:00", "timeZone": "UTC"},
+            "singleValueExtendedProperties": [{"id": STATS_PROP, "value": "{}"}]})["id"]
+    _sref.update(cal=cal, ev=ev); return cal, ev
+
+def stats_load():
+    if STATS_FAKE:
+        try: return json.load(open(STATS_FAKE))
+        except Exception: return {}
+    cal, ev = _stats_event()
+    pid = urllib.parse.quote(f"id eq '{STATS_PROP}'")
+    r = graph("GET", f"/me/calendars/{cal}/events/{ev}?$select=id&$expand=singleValueExtendedProperties($filter={pid})")
+    p = r.get("singleValueExtendedProperties") or []
+    return json.loads(p[0]["value"]) if p else {}
+
+def stats_save(data):
+    if STATS_FAKE: json.dump(data, open(STATS_FAKE, "w")); return
+    cal, ev = _stats_event()
+    graph("PATCH", f"/me/calendars/{cal}/events/{ev}", {"singleValueExtendedProperties": [{"id": STATS_PROP, "value": json.dumps(data, separators=(",", ":"))}]})
+
+def _merge(base, add):
+    out = {k: dict(v) for k, v in base.items()}
+    for day, f in add.items():
+        d = out.setdefault(day, {})
+        for k, n in f.items(): d[k] = d.get(k, 0) + n
+    return out
+
+FLUSH_LOCK = threading.Lock()
+def stats_flush():
+    with FLUSH_LOCK:
+        with SLOCK:
+            if not PENDING: return True
+            batch = {k: dict(v) for k, v in PENDING.items()}; PENDING.clear()
+        try: stats_save(_merge(stats_load(), batch)); return True
+        except Exception as e:
+            app.logger.error("stats flush failed: %s", e)
+            with SLOCK:
+                for day, f in batch.items():
+                    d = PENDING.setdefault(day, {})
+                    for k, n in f.items(): d[k] = d.get(k, 0) + n
+            return False
+
+def _flusher():
+    while True:
+        time.sleep(STATS_FLUSH_SECS); stats_flush()
+if not os.environ.get("STATS_NO_THREAD"):
+    threading.Thread(target=_flusher, daemon=True).start()
+atexit.register(stats_flush)
+
+def stats_summary(data):
+    days = sorted(data); tot = {k: 0 for k in COUNT_FIELDS}
+    daily = []
+    for d in days:
+        row = {k: data[d].get(k, 0) for k in COUNT_FIELDS}
+        row["visits"] = row["qr"] + row["link"]; row["unique"] = row["unique_qr"] + row["unique_link"]
+        for k in COUNT_FIELDS: tot[k] += row[k]
+        daily.append(dict(date=d, **row))
+    tot["visits"] = tot["qr"] + tot["link"]; tot["unique"] = tot["unique_qr"] + tot["unique_link"]
+    today = dt.datetime.now(TZ).date(); wk = (today - dt.timedelta(days=6)).isoformat()
+    last7 = {k: sum(r[k] for r in daily if r["date"] >= wk) for k in list(COUNT_FIELDS) + ["visits", "unique"]}
+    return {"timezone": "America/Chicago", "totals": tot, "last_7_days": last7, "daily": daily,
+            "note": "unique = first visit that day per browser; new_visitors = first visit ever per browser"}
+
 @app.after_request
 def cors(r):
     r.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
@@ -208,6 +302,30 @@ def on_error(e):
 
 @app.get("/health")
 def health(): return {"ok": True}
+
+
+@app.route("/visit", methods=["POST", "GET", "OPTIONS"])
+def visit():
+    if request.method == "OPTIONS": return ("", 204)
+    d = request.get_json(force=True, silent=True) or {}
+    if not isinstance(d, dict): d = {}
+    src = "qr" if str(d.get("src") or request.args.get("src") or "").lower() == "qr" else "link"
+    stat_bump(src)
+    if d.get("first_today"): stat_bump("unique_" + src)
+    if d.get("new"): stat_bump("new_visitors")
+    return ("", 204)
+
+@app.get("/stats")
+def stats():
+    k = request.args.get("key") or request.headers.get("X-Stats-Key") or ""
+    if not hmac.compare_digest(hashlib.sha256(k.encode()).hexdigest(), STATS_KEY_SHA256):
+        return {"ok": False, "error": "not found"}, 404
+    if request.args.get("flush"): stats_flush()
+    try: data = stats_load()
+    except Exception as e:
+        app.logger.error("stats load failed: %s", e); data = {}
+    with SLOCK: data = _merge(data, PENDING)
+    return jsonify(stats_summary(data))
 
 @app.get("/availability")
 def availability():
@@ -245,6 +363,7 @@ def book():
                 app.logger.error("outlook event failed: %s", e)
                 return {"ok": False, "error": "calendar unavailable, please call 712-254-6914"}, 503
         HOLDS.setdefault(start.isoformat(), {})[tech] = time.time() + HOLD_SECS
+    stat_bump("bookings")
     notify(d, start, tech)   # outside the lock; failure never fails the booking
     return {"ok": True, "slot_start": start.isoformat()}
 
