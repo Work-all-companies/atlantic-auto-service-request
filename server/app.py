@@ -122,10 +122,10 @@ def send_mail(subject, text):
 
 def notify(d, start, tech):
     slot = start.strftime("%a %b %d, %Y %I:%M %p").replace(" 0", " ") + " CT"
-    lines = [f"Name: {d.get('name','')}", f"Phone: {d.get('phone','')}", f"Email: {d.get('email','') or '-'}",
+    lines = ["Appointment: INSPECTION", f"Name: {d.get('name','')}", f"Phone: {d.get('phone','')}", f"Email: {d.get('email','') or '-'}",
              f"Vehicle: {d.get('vehicle','')}", f"VIN or plate: {d.get('vin_or_plate','')}",
              f"Issue: {d.get('issue','')}", f"Booked: {slot}", f"Tech: {tech}"]
-    try: send_mail(f"Service request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
+    try: send_mail(f"INSPECTION - Service request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
     except Exception as e: app.logger.error("notify email failed: %s", e)
 
 VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
@@ -354,8 +354,8 @@ def book():
             body = "\n".join(f"{k}: {d.get(k,'')}" for k in ("name","phone","email","vehicle","vin_or_plate","issue"))
             try:
                 graph("POST", f"/me/calendars/{CAL_ID}/events", {
-                    "subject": f"{tech} - Customer: {d['name']} - {d['vehicle']}",
-                    "body": {"contentType": "text", "content": body + "\n\nBooked online. Call customer to confirm."},
+                    "subject": f"{tech} - INSPECTION - Customer: {d['name']} - {d['vehicle']}",
+                    "body": {"contentType": "text", "content": "INSPECTION\n" + body + "\n\nBooked online. Call customer to confirm."},
                     "start": {"dateTime": start.strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": "Central Standard Time"},
                     "end": {"dateTime": (start + dt.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": "Central Standard Time"},
                     "showAs": "busy"})

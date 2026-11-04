@@ -58,7 +58,7 @@ def test_mail_both_and_failure_safe():
     m = A.SENT_MAIL[-1]["message"]
     assert [x["emailAddress"]["address"] for x in m["toRecipients"]] == [
         "bkeegan@atlanticglassco.com", "bschmidtke@atlanticautosalesco.com"]
-    assert m["subject"].startswith("Service request: Jo - 2015 Ford F-150 - ")
+    assert m["subject"].startswith("INSPECTION - Service request: Jo - 2015 Ford F-150 - ")
     for k in ("Phone: (712) 555-1234", "jo@x.com", "ABC123", "brakes", "Tech: Brandon", "2:00 PM"): assert k in m["body"]["content"]
     orig = A.send_mail
     def boom(*a): raise RuntimeError("graph down")
