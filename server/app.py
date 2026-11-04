@@ -297,7 +297,7 @@ def on_error(e):
         r = jsonify({"ok": False, "error": e.description or e.name}); r.status_code = e.code or 500
     else:
         app.logger.exception("unhandled error")
-        r = jsonify({"ok": False, "error": "Something went wrong on our end. Please call the shop at 712-254-6914."}); r.status_code = 500
+        r = jsonify({"ok": False, "error": "Something went wrong on our end. Please call the shop at 712-250-8640."}); r.status_code = 500
     return cors(r)
 
 @app.get("/health")
@@ -361,7 +361,7 @@ def book():
                     "showAs": "busy"})
             except Exception as e:
                 app.logger.error("outlook event failed: %s", e)
-                return {"ok": False, "error": "calendar unavailable, please call 712-254-6914"}, 503
+                return {"ok": False, "error": "calendar unavailable, please call 712-250-8640"}, 503
         HOLDS.setdefault(start.isoformat(), {})[tech] = time.time() + HOLD_SECS
     stat_bump("bookings")
     notify(d, start, tech)   # outside the lock; failure never fails the booking
