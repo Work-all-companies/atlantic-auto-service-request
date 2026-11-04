@@ -124,8 +124,8 @@ def notify(d, start, tech):
     slot = start.strftime("%a %b %d, %Y %I:%M %p").replace(" 0", " ") + " CT"
     lines = [f"Name: {d.get('name','')}", f"Phone: {d.get('phone','')}", f"Email: {d.get('email','') or '-'}",
              f"Vehicle: {d.get('vehicle','')}", f"VIN or plate: {d.get('vin_or_plate','')}",
-             f"Issue: {d.get('issue','')}", f"Booked: {slot}", f"Tech: {tech}"]
-    try: send_mail(f"Service request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
+             "Service: Inspection (online booking)", f"Notes: {d.get('issue','') or '-'}", f"Booked: {slot}", f"Tech: {tech}"]
+    try: send_mail(f"Inspection request: {d['name']} - {d['vehicle']} - {slot}", "\n".join(lines))
     except Exception as e: app.logger.error("notify email failed: %s", e)
 
 VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
@@ -162,7 +162,8 @@ def _validate(d):
     d = _legacy(d)
     g = lambda k: str(d.get(k) or "").strip()
     c = {k: g(k) for k in ("name", "email", "make", "model", "issue")}
-    for k, lbl in (("name", "Name"), ("make", "Make"), ("model", "Model"), ("issue", "Description of the issue")):
+    c["service"] = "Inspection"   # online booking is inspection-only; anything else must call the shop
+    for k, lbl in (("name", "Name"), ("make", "Make"), ("model", "Model")):
         if not c[k]: return None, f"{lbl} is required."
     digits = re.sub(r"\D", "", g("phone"))
     if len(digits) == 11 and digits[0] == "1": digits = digits[1:]
@@ -351,10 +352,10 @@ def book():
             return {"ok": False, "error": "taken"}, 409
         tech = free[0]
         if not FAKE_GRAPH:   # create the Outlook event while still holding the lock
-            body = "\n".join(f"{k}: {d.get(k,'')}" for k in ("name","phone","email","vehicle","vin_or_plate","issue"))
+            body = "Service: Inspection\n" + "\n".join(f"{k}: {d.get(k,'')}" for k in ("name","phone","email","vehicle","vin_or_plate")) + f"\nnotes: {d.get('issue','') or '-'}"
             try:
                 graph("POST", f"/me/calendars/{CAL_ID}/events", {
-                    "subject": f"{tech} - Customer: {d['name']} - {d['vehicle']}",
+                    "subject": f"{tech} - Customer: {d['name']} - {d['vehicle']} - INSPECTION",
                     "body": {"contentType": "text", "content": body + "\n\nBooked online. Call customer to confirm."},
                     "start": {"dateTime": start.strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": "Central Standard Time"},
                     "end": {"dateTime": (start + dt.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": "Central Standard Time"},

@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Request service online or call 712-254-6914">
-<meta property="og:title" content="Atlantic Service &amp; Repair: Request Service">
-<meta property="og:description" content="Request service online or call 712-254-6914">
+<meta name="description" content="Book a vehicle inspection online. For repairs call 712-254-6914">
+<meta property="og:title" content="Atlantic Service &amp; Repair: Book an Inspection">
+<meta property="og:description" content="Book a vehicle inspection online. For repairs call 712-254-6914">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://work-all-companies.github.io/atlantic-auto-service-request/">
 <meta property="og:image" content="https://work-all-companies.github.io/atlantic-auto-service-request/og-image.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Atlantic Service &amp; Repair: Request Service">
-<meta name="twitter:description" content="Request service online or call 712-254-6914">
+<meta name="twitter:title" content="Atlantic Service &amp; Repair: Book an Inspection">
+<meta name="twitter:description" content="Book a vehicle inspection online. For repairs call 712-254-6914">
 <meta name="twitter:image" content="https://work-all-companies.github.io/atlantic-auto-service-request/og-image.png">
-<title>Request Service | Atlantic Service &amp; Repair</title>
+<title>Book an Inspection | Atlantic Service &amp; Repair</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f5;color:#1d2433}
 header{background:#12305a;color:#fff;text-align:center;padding:22px 16px}header h1{margin:0;font-size:1.6rem}header p{margin:6px 0 0;opacity:.85;font-size:.9rem}
@@ -36,8 +36,10 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <header><h1>Atlantic Service &amp; Repair</h1><p>Atlantic, Iowa &middot; Mon&ndash;Fri 8 AM&ndash;5 PM, open through lunch</p><p><a href="tel:+17122546914" style="color:#fff;font-weight:700">Call 712-254-6914</a></p></header>
 <main><div class="card">
 <form id="f" novalidate>
-<h2>Request Service</h2>
-<p class="note">Tell us about your vehicle. We'll call you to set up an inspection time.</p>
+<h2>Book a Vehicle Inspection</h2>
+<p class="note">Online booking is for <b>vehicle inspection appointments only</b>.</p>
+<p class="note" style="font-weight:700;font-size:17px">Need repairs or other service? Call us at <a href="tel:+17122546914">712-254-6914</a>.</p>
+<label>Service</label><input value="Vehicle inspection appointment" readonly disabled><input type="hidden" name="service" value="Inspection">
 <label for="name">Full name</label><input id="name" name="name" autocomplete="name" required><p class="ferr" id="e-name"></p>
 <label for="phone">Phone</label><input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(712) 555-1234" maxlength="14" required><p class="ferr" id="e-phone"></p>
 <label for="email">Email <span class="opt">(optional)</span></label><input id="email" name="email" type="email" autocomplete="email"><p class="ferr" id="e-email"></p>
@@ -47,14 +49,14 @@ footer{text-align:center;font-size:.8rem;color:#6b7280;padding:16px}
 <p class="ferr" id="e-vehicle"></p>
 <label for="vin">VIN <span class="opt">(or enter a license plate below)</span></label><input id="vin" name="vin" placeholder="17-character VIN" maxlength="17" autocapitalize="characters" autocomplete="off" spellcheck="false">
 <label for="plate">License plate number <span class="opt">(if no VIN)</span></label><input id="plate" name="plate" placeholder="e.g. ABC123" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false"><p class="ferr" id="e-idp"></p>
-<label>Preferred drop-off / inspection time</label>
+<label>Preferred inspection drop-off time</label>
 <p class="note" style="margin:0 0 8px">Pick a time that works for you. We'll call to confirm.</p>
 <div class="picker"><div id="days" class="days"></div><div id="slots" class="slots"></div><p id="pickmsg" class="note"></p></div><p class="ferr" id="e-slot"></p>
 <input type="hidden" name="preferred_date" id="preferred_date"><input type="hidden" name="preferred_time" id="preferred_time">
-<label for="issue">Brief description of the issue</label><textarea id="issue" name="issue" placeholder="What's going on with your vehicle?" required></textarea><p class="ferr" id="e-issue"></p>
+<label for="issue">Notes for the inspection <span class="opt">(optional)</span></label><textarea id="issue" name="issue" placeholder="Anything we should know? (For repairs, please call 712-254-6914.)"></textarea><p class="ferr" id="e-issue"></p>
 <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
 <p id="err" class="err"></p>
-<button id="btn" type="submit">Submit Request</button>
+<button id="btn" type="submit">Book Inspection</button>
 </form>
 <div id="thanks"><h2>Thank you!</h2><p>We received your request. Atlantic Service &amp; Repair will call you shortly to confirm your appointment time.</p><p>Questions? Call <a href="tel:+17122546914">712-254-6914</a></p></div>
 </div></main><footer>&copy; Atlantic Service &amp; Repair</footer>
@@ -142,7 +144,7 @@ const CHECK={
   if(v){if(v.length!==17)return 'VIN must be exactly 17 characters (you have '+v.length+'). Fix it or clear it and use the plate.';if(/[IOQ]/.test(v))return 'VINs never contain the letters I, O or Q. Check for 1 or 0 instead.';}
   if(p&&!v&&!/^[A-Z0-9]{2,8}$/.test(p))return 'License plate must be 2\u20138 letters or numbers.';
   return ''},
- issue:()=>$('issue').value.trim()?'':'Please briefly describe the issue.',
+ issue:()=>'',
  slot:()=>pt.value?'':'Please choose a preferred time.'};
 const touched=new Set();
 function check(k){const m=CHECK[k]();setE(k,m);return !m}
@@ -158,12 +160,12 @@ f.addEventListener('submit',async e=>{e.preventDefault();err.textContent='';
  d.vin_or_plate=d.vin?('VIN '+d.vin+(d.plate?' / Plate '+d.plate:'')):('Plate '+d.plate);
  try{ if(SERVER_URL){d.slot_start=PICK;
    const r=await fetch(SERVER_URL+'/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-   if(r.status===409){err.textContent='Sorry, that time was just taken. Please choose another.';btn.disabled=false;btn.textContent='Submit Request';pt.value='';loadAvail();return}
-   if(!r.ok){const j=await r.json().catch(()=>({}));err.textContent=(j.error||'Sorry, something went wrong. Please call the shop at 712-254-6914.');btn.disabled=false;btn.textContent='Submit Request';return}
-  } else if(FORM_ENDPOINT){d._subject='New service request - '+d.name;
+   if(r.status===409){err.textContent='Sorry, that time was just taken. Please choose another.';btn.disabled=false;btn.textContent='Book Inspection';pt.value='';loadAvail();return}
+   if(!r.ok){const j=await r.json().catch(()=>({}));err.textContent=(j.error||'Sorry, something went wrong. Please call the shop at 712-254-6914.');btn.disabled=false;btn.textContent='Book Inspection';return}
+  } else if(FORM_ENDPOINT){d._subject='New inspection request - '+d.name;
    const r=await fetch(FORM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
    if(!r.ok)throw 0;}
   f.style.display='none';document.getElementById('thanks').style.display='block';window.scrollTo(0,0);
- }catch(_){err.textContent='Sorry, something went wrong. Please call the shop at 712-254-6914.';btn.disabled=false;btn.textContent='Submit Request';}
+ }catch(_){err.textContent='Sorry, something went wrong. Please call the shop at 712-254-6914.';btn.disabled=false;btn.textContent='Book Inspection';}
 });
 </script></body></html>

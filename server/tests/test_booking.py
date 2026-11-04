@@ -58,7 +58,7 @@ def test_mail_both_and_failure_safe():
     m = A.SENT_MAIL[-1]["message"]
     assert [x["emailAddress"]["address"] for x in m["toRecipients"]] == [
         "bkeegan@atlanticglassco.com", "bschmidtke@atlanticautosalesco.com"]
-    assert m["subject"].startswith("Service request: Jo - 2015 Ford F-150 - ")
+    assert m["subject"].startswith("Inspection request: Jo - 2015 Ford F-150 - ")
     for k in ("Phone: (712) 555-1234", "jo@x.com", "ABC123", "brakes", "Tech: Brandon", "2:00 PM"): assert k in m["body"]["content"]
     orig = A.send_mail
     def boom(*a): raise RuntimeError("graph down")
@@ -75,7 +75,7 @@ def _bad(**kw):
     return r.get_json()["error"]
 
 def test_required_fields():
-    for k in ("name", "make", "model", "issue", "phone", "year", "slot_start"):
+    for k in ("name", "make", "model", "phone", "year", "slot_start"):
         assert _bad(**{k: ""})
     assert "VIN or a license plate" in _bad(vin="", plate="")
     assert A.validate(dict(GOOD, email="", slot_start="x"))[1] is None   # email optional
@@ -189,3 +189,9 @@ def test_flush_failure_keeps_counts(tmp_path):
     try: assert not A.stats_flush()
     finally: A.stats_save = orig
     assert sum(v.get("qr", 0) for v in A.PENDING.values()) == 1
+
+def test_inspection_only():
+    A.HOLDS.clear(); A.SENT_MAIL.clear()
+    r = A.app.test_client().post("/book", json={**GOOD, "issue": "", "service": "Engine rebuild", "slot_start": _slot()})
+    assert r.status_code == 200, r.get_json()
+    assert A.validate(dict(GOOD, service="Brakes", slot_start="x"))[0]["service"] == "Inspection"
