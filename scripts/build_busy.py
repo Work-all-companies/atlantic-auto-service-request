@@ -1,8 +1,29 @@
-import os, json, datetime as dt, urllib.request
+import os, json, time, datetime as dt, urllib.request, urllib.error
 from zoneinfo import ZoneInfo
 import icalendar, recurring_ical_events
 TZ = ZoneInfo("America/Chicago")
-raw = urllib.request.urlopen(os.environ["AAS_ICS_URL"], timeout=60).read()
+
+def fetch_ics(url, attempts=5, timeout=30):
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "AAS-busy-refresh/1.0"},
+    )
+    last_err = None
+    for i in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = resp.read()
+            if not data:
+                raise ValueError("empty ICS response")
+            return data
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+            last_err = e
+            print(f"ICS fetch attempt {i}/{attempts} failed: {e}")
+            if i < attempts:
+                time.sleep(min(2 ** i, 16))
+    raise last_err
+
+raw = fetch_ics(os.environ["AAS_ICS_URL"])
 cal = icalendar.Calendar.from_ical(raw)
 now = dt.datetime.now(TZ)
 start = dt.datetime.combine(now.date(), dt.time(), TZ)
